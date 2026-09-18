@@ -16,8 +16,8 @@ from app.domain.exceptions.tokens import (
 
 
 class Tokens:
-    def create_access_token(self, user_id: int) -> str: 
-        return self._create_token(user_id, "access", settings.ACCESS_TOKEN_EXPIRES_MINUTES)
+    def create_access_token(self, client_id: int) -> str: 
+        return self._create_token(client_id, "access", settings.ACCESS_TOKEN_EXPIRES_MINUTES)
     
     def create_refresh_token(self) -> str: 
         return secrets.token_urlsafe(32) 
@@ -47,18 +47,18 @@ class Tokens:
             raise InvalidTokenTypeError()
         
         try:
-            user_id = int(payload["sub"])
-            if user_id < 0: 
+            client_id = int(payload["sub"])
+            if client_id < 0: 
                 raise InvalidUserIdTokenError()
         except (ValueError, KeyError):
             raise InvalidUserIdTokenError()
         
         return payload
     
-    def _create_token(self, user_id: int, token_type: str, expires_minutes: int) -> str: 
+    def _create_token(self, client_id: int, token_type: str, expires_minutes: int) -> str: 
         now = datetime.now(timezone.utc)
         payload = {
-            "sub": str(user_id),
+            "sub": str(client_id),
             "type": token_type,
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(minutes=expires_minutes)).timestamp()),

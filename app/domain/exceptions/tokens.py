@@ -24,3 +24,18 @@ class InvalidTokenTypeError(AppError):
 class InvalidUserIdTokenError(AppError): 
     """Invalid User Id Token Error"""
     pass 
+
+
+class RefreshTokenExpiredError(AppError): 
+    """Refresh Token Expire Error"""
+    pass 
+
+
+class RefreshTokenNotFoundError(AppError): 
+    """Refresh Token Not Found Error"""
+    pass 
+
+
+class InvalidCredentialsError(AppError): 
+    """Invalid Credentials Error"""
+    pass

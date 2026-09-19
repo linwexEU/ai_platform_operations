@@ -11,7 +11,7 @@ from app.domain.exceptions.tokens import (
     InvalidTokenIssuerError,
     InvalidTokenError,
     InvalidTokenTypeError,
-    InvalidUserIdTokenError
+    InvalidClientIdTokenError
 )
 
 
@@ -49,9 +49,9 @@ class Tokens:
         try:
             client_id = int(payload["sub"])
             if client_id < 0: 
-                raise InvalidUserIdTokenError()
+                raise InvalidClientIdTokenError()
         except (ValueError, KeyError):
-            raise InvalidUserIdTokenError()
+            raise InvalidClientIdTokenError()
         
         return payload
     

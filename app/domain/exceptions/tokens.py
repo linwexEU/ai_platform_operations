@@ -21,7 +21,7 @@ class InvalidTokenTypeError(AppError):
     pass 
 
 
-class InvalidUserIdTokenError(AppError): 
+class InvalidClientIdTokenError(AppError): 
     """Invalid User Id Token Error"""
     pass 
 

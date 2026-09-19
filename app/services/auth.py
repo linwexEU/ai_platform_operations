@@ -70,7 +70,7 @@ class AuthService:
         client = await client_repo.get_client_by_email(email)
         
         # Verify password
-        if not client or security.verify_password(password, client.password_hash): 
+        if not client or not security.verify_password(password, client.password_hash): 
             raise InvalidCredentialsError()
         
         return client

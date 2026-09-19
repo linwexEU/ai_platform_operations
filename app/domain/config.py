@@ -13,10 +13,13 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str
     
-    ACCESS_TOKEN_EXPIRES_MINUTES: int
-    REFRESH_TOKEN_EXPIRES_MINUTES: int
     ACCESS_COOKIE_NAME: str
+    ACCESS_TOKEN_EXPIRES_MINUTES: int
+    
     REFRESH_COOKIE_NAME: str
+    REFRESH_TOKEN_EXPIRES_MINUTES: int
+    
+    SESSION_COOKIE_SECURE: bool
     
     DB_USER: str
     DB_PASS: str

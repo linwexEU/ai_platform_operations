@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     REFRESH_COOKIE_NAME: str
     REFRESH_TOKEN_EXPIRES_MINUTES: int
     
+    VERIFICATION_CODE_MINUTES: int
+    
     SESSION_COOKIE_SECURE: bool
     
     DB_USER: str
@@ -30,6 +32,13 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int
     
+    SMTP_HOST: str
+    SMTP_PORT: int
+    SMTP_USER: str
+    SMTP_PASS: str
+    
+    VERIFICATION_CODE_TEMPLATE_PATH: str
+        
     @property
     def DATABASE_URL(self) -> str: 
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"

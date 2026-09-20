@@ -2,12 +2,12 @@ from typing import Annotated
 
 from fastapi import Depends, Request, HTTPException, status
 
-from app.domain.tokens import tokens
+from app.domain.core.tokens import tokens
 from app.entrypoints.dependencies.db import SessionDep
 from app.services.auth import AuthService
 from app.infrastructure.database.models import Client
 from app.infrastructure.repositories.client import ClientRepository
-from app.domain.config import settings
+from app.domain.core.config import settings
 from app.domain.exceptions.tokens import (
     TokenExpiredError,
     InvalidTokenIssuerError,

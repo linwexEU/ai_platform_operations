@@ -5,7 +5,7 @@ from typing import Any
 
 import jwt
 
-from app.domain.config import settings
+from app.domain.core.config import settings
 from app.domain.exceptions.tokens import (
     TokenExpiredError,
     InvalidTokenIssuerError,

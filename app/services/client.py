@@ -1,9 +1,9 @@
 from sqlalchemy.exc import IntegrityError
 
-from app.domain.enums import Role
+from app.domain.core.enums import Role
 from app.infrastructure.database.models import Client
 from app.infrastructure.uow.uow import UnitOfWork
-from app.domain.security import security
+from app.domain.core.security import security
 from app.domain.exceptions.client import ClientAlreadyExistsError
 
 
@@ -25,8 +25,6 @@ class ClientService:
                 client = await uow.client_repo.create_client(first_name, role, email, password_hash, last_name)
             except IntegrityError:
                 raise ClientAlreadyExistsError()
-            
-        # TODO: Send email with verification letter
         
         return client
     

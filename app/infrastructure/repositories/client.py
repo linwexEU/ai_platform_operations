@@ -1,11 +1,11 @@
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.domain.interfaces.repositories.client import AbstractClientRepository
 from app.infrastructure.database.models import Client
-from app.domain.enums import Role
+from app.domain.core.enums import Role
 
 
 class ClientRepository(AbstractClientRepository): 
@@ -37,3 +37,7 @@ class ClientRepository(AbstractClientRepository):
     async def get_client_by_email(self, email: str) -> Optional[Client]: 
         return await self.session.scalar(select(Client).where(Client.email == email))
     
+    async def verify_client(self, client_id: int) -> None: 
+        await self.session.execute(
+            update(Client).where(Client.id == client_id).values(activated=True)
+        )

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from app.domain.enums import Role
+from app.domain.core.enums import Role
 from app.infrastructure.database.models import Client
 
 
@@ -21,3 +21,6 @@ class AbstractClientRepository(ABC):
 
     @abstractmethod
     async def get_client_by_email(self, email: str) -> Optional[Client]: ...
+
+    @abstractmethod
+    async def verify_client(self, client_id: int) -> None: ...

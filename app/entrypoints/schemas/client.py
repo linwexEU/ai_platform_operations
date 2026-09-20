@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 
-from app.domain.enums import Role
+from app.domain.core.enums import Role
 
 
 class RegisterClientRequest(BaseModel): 
@@ -20,3 +20,4 @@ class GetClientResponse(BaseModel):
     last_name: str | None = None
     email: EmailStr
     role: Role 
+    activated: bool

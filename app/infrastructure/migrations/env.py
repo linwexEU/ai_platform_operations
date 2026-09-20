@@ -14,7 +14,7 @@ from alembic import context
 
 from app.infrastructure.database.base import Base
 from app.infrastructure.database.models import Client, RefreshToken, Session, Document, Chunk, SessionDocument, Message, Operation  # noqa
-from app.domain.config import settings
+from app.domain.core.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

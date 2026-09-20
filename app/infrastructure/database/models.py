@@ -6,7 +6,7 @@ from sqlalchemy import String, Enum, DateTime, ForeignKey, Boolean, Integer, JSO
 from pgvector.sqlalchemy import Vector
 
 from app.infrastructure.database.base import Base
-from app.domain.enums import Role, SenderType, OperationType, OperationStatus
+from app.domain.core.enums import Role, SenderType, OperationType, OperationStatus
 
 
 class Client(Base): 

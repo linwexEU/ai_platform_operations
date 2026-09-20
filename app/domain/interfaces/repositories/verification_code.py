@@ -11,3 +11,6 @@ class AbstractVerificationCodeRepository(ABC):
     
     @abstractmethod
     async def get_verification_code(self, code: str) -> Optional[VerificationCode]: ...
+
+    @abstractmethod
+    async def delete_verification_codes(self, client_id: int) -> None: ...

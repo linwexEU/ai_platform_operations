@@ -3,7 +3,7 @@ from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from app.domain.interfaces.repositories.verification_code import AbstractVerificationCodeRepository
 from app.infrastructure.database.models import VerificationCode
@@ -26,3 +26,7 @@ class VerificationCodeRepository(AbstractVerificationCodeRepository):
             )
         )
     
+    async def delete_verification_codes(self, client_id: int) -> None:
+        await self.session.execute(
+            delete(VerificationCode).where(VerificationCode.client_id == client_id)
+        )

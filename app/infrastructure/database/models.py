@@ -21,6 +21,7 @@ class Client(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="client", cascade="all, delete-orphan")
+    verification_codes: Mapped[list["VerificationCode"]] = relationship(back_populates="client", cascade="all, delete-orphan")
     sessions: Mapped[list["Session"]] = relationship(back_populates="client", cascade="all, delete-orphan")
     documents: Mapped[list["Document"]] = relationship(back_populates="client", cascade="all, delete-orphan")
     
@@ -35,6 +36,16 @@ class RefreshToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     client: Mapped["Client"] = relationship(back_populates="refresh_tokens")
+
+
+class VerificationCode(Base): 
+    __tablename__ = "verification_code"
+    
+    client_id: Mapped[int] = mapped_column(ForeignKey("client.id"), nullable=False)
+    code: Mapped[str] = mapped_column(String(128), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    
+    client: Mapped["Client"] = relationship(back_populates="verification_codes")
 
 
 class Session(Base): 

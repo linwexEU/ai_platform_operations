@@ -28,7 +28,6 @@ class ClientRepository(AbstractClientRepository):
             password_hash=password_hash,
         )
         self.session.add(client)
-        await self.session.flush()
         return client
     
     async def get_client_by_id(self, client_id: int) -> Optional[Client]: 

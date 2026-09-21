@@ -16,7 +16,6 @@ class VerificationCodeRepository(AbstractVerificationCodeRepository):
     async def create_verification_code(self, client_id: int, code: str, expires_at: datetime) -> VerificationCode: 
         verification_code = VerificationCode(client_id=client_id, code=code, expires_at=expires_at)
         self.session.add(verification_code)
-        await self.session.flush()
         return verification_code
     
     async def get_verification_code(self, code: str) -> Optional[VerificationCode]:

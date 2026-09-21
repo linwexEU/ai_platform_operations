@@ -19,7 +19,6 @@ class RefreshTokenRepository(AbstractRefreshTokenRepository):
             expires_at=expires_at
         )
         self.session.add(token)
-        await self.session.flush()
         return token
     
     async def get_refresh_token_by_hash(self, token_hash: str) -> Optional[RefreshToken]:

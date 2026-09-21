@@ -1,0 +1,72 @@
+from fastapi import APIRouter, HTTPException, status
+
+from app.entrypoints.dependencies.auth import CurrActivatedClient
+from app.entrypoints.dependencies.session import SessionServiceDep
+from app.domain.exceptions.session import SessionIsNotFoundError
+from app.entrypoints.schemas.session import (
+    CreateSessionRequest,
+    CreateSessionResponse, 
+    GetSessionsChatResponse, 
+    SSession, 
+    UpdateSessionRequest,
+    UpdateSessionResponse
+)
+
+router = APIRouter()
+
+
+@router.post("/")
+async def create_session_chat(
+    curr_client: CurrActivatedClient, 
+    payload: CreateSessionRequest, 
+    service: SessionServiceDep
+) -> CreateSessionResponse:
+    session_chat = await service.create_session_chat(curr_client.id, payload.name) 
+    return CreateSessionResponse.from_orm(session_chat)
+
+
+@router.get("/")
+async def get_sessions_chat(
+    curr_client: CurrActivatedClient, 
+    service: SessionServiceDep, 
+    offset: int = 0, 
+    limit: int = 10
+) -> GetSessionsChatResponse: 
+    sessions = await service.get_clients_sessions_chat(curr_client.id)
+    sessions_chat = [SSession.from_orm(session) for session in sessions]
+    return GetSessionsChatResponse(
+        sessions=sessions_chat[offset:offset + limit], 
+        total=len(sessions_chat), 
+        offset=offset,
+        limit=limit
+    )
+
+
+@router.get("/{session_id}")
+async def get_session_chat(session_id: int, curr_client: CurrActivatedClient, service: SessionServiceDep) -> SSession: 
+    try:
+        return await service.get_session_chat_by_session_id(curr_client.id, session_id)
+    except SessionIsNotFoundError: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session is not found")
+
+
+@router.put("/{session_id}")
+async def update_session_chat(
+    session_id: int,
+    payload: UpdateSessionRequest, 
+    curr_client: CurrActivatedClient, 
+    service: SessionServiceDep
+) -> UpdateSessionResponse: 
+    try:
+        session = await service.update_session_chat(curr_client.id, session_id, payload.name) 
+        return UpdateSessionResponse.from_orm(session)
+    except SessionIsNotFoundError: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session is not found")
+
+
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_session_chat(session_id: int, curr_client: CurrActivatedClient, service: SessionServiceDep) -> None: 
+    try: 
+        await service.delete_session_chat(curr_client.id, session_id)
+    except SessionIsNotFoundError: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session is not found") 

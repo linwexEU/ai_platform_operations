@@ -53,6 +53,17 @@ async def get_current_client_from_bearer(request: Request, session: SessionDep) 
 CurrClientDep = Annotated[Client, Depends(get_current_client_from_bearer)]
 
 
+async def get_current_activated_client(curr_client: CurrClientDep) -> Client: 
+    if not curr_client.activated: 
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your account is not activated")
+
+    return curr_client
+
+
+CurrActivatedClient = Annotated[Client, Depends(get_current_activated_client)]
+
+
+
 def _extract_access_token(request: Request) -> str: 
     header = request.headers.get("authorization") 
     if header and header.lower().startswith("bearer "): 

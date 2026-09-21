@@ -50,7 +50,5 @@ class SSession(CreateSessionResponse):
 
 class GetSessionsChatResponse(BaseModel): 
     sessions: list[SSession]
-    total: int
-    offset: int
-    limit: int
+    total_count: int
         

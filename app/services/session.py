@@ -17,8 +17,11 @@ class SessionService:
             session_chat = await uow.session_repo.create_session_chat(client_id, name)
         return session_chat 
     
-    async def get_clients_sessions_chat(self, client_id: int) -> Sequence[Session]: 
-        return await self.repo.get_client_sessions(client_id)
+    async def get_clients_sessions_chat(self, client_id: int, offset: int = 0, limit: int = 10) -> Sequence[Session]: 
+        return await self.repo.get_client_sessions(client_id, offset, limit)
+    
+    async def get_total_count_clients_sessions(self, client_id: int) -> int: 
+        return await self.repo.get_total_count_clients_sessions(client_id)
 
     async def get_session_chat_by_session_id(self, client_id: int, session_id: int) -> Optional[Session]: 
         session_chat = await self.repo.get_session_chat_by_id(session_id)
@@ -41,7 +44,7 @@ class SessionService:
             if session_chat.client_id != client_id: 
                 raise SessionIsNotFoundError()
             
-            await uow.session_repo.update_session_chat(session_id, name)
+            await uow.session_repo.update_session_chat(session_chat, name)
         
         return session_chat
     

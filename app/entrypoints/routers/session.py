@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, HTTPException, status
 
 from app.entrypoints.dependencies.auth import CurrActivatedClient
@@ -32,13 +34,11 @@ async def get_sessions_chat(
     offset: int = 0, 
     limit: int = 10
 ) -> GetSessionsChatResponse: 
-    sessions = await service.get_clients_sessions_chat(curr_client.id)
-    sessions_chat = [SSession.from_orm(session) for session in sessions]
+    sessions = await service.get_clients_sessions_chat(curr_client.id, offset, limit)
+    total_count = await service.get_total_count_clients_sessions(curr_client.id)
     return GetSessionsChatResponse(
-        sessions=sessions_chat[offset:offset + limit], 
-        total=len(sessions_chat), 
-        offset=offset,
-        limit=limit
+        sessions=[SSession.from_orm(session) for session in sessions], 
+        total_count=total_count
     )
 
 

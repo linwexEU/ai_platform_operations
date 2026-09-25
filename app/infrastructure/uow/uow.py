@@ -4,11 +4,13 @@ from typing import Self
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.interfaces.repositories.client import AbstractClientRepository 
+from app.domain.interfaces.repositories.document import AbstractDocumentRepository
 from app.domain.interfaces.repositories.session import AbstractSessionRepository
 from app.domain.interfaces.repositories.token import AbstractRefreshTokenRepository
 from app.domain.interfaces.repositories.verification_code import AbstractVerificationCodeRepository
 from app.infrastructure.database.base import session_factory
 from app.infrastructure.repositories.client import ClientRepository 
+from app.infrastructure.repositories.document import DocumentRepository
 from app.infrastructure.repositories.session import SessionRepository
 from app.infrastructure.repositories.token import RefreshTokenRepository
 from app.infrastructure.repositories.verification_code import VerificationCodeRepository
@@ -19,6 +21,7 @@ class UnitOfWork:
     refresh_token_repo: AbstractRefreshTokenRepository
     verification_code_repo: AbstractVerificationCodeRepository
     session_repo: AbstractSessionRepository
+    document_repo: AbstractDocumentRepository
     
     def __init__(self) -> None: 
         self.session: AsyncSession | None = None
@@ -29,6 +32,7 @@ class UnitOfWork:
         self.refresh_token_repo = RefreshTokenRepository(self.session)
         self.verification_code_repo = VerificationCodeRepository(self.session)
         self.session_repo = SessionRepository(self.session)
+        self.document_repo = DocumentRepository(self.session)
         return self
     
     async def __aexit__(

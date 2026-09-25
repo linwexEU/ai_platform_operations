@@ -46,20 +46,28 @@ async def send_html_message(message: MIMEMultipart) -> None:
         await smtp.send_message(message)
     except aiosmtplib.SMTPConnectError as err: 
         logger.error(f"Bad host/port, refused, implicit TLS mismatch: {str(err)}")
+        raise
     except aiosmtplib.SMTPServerDisconnected as err: 
         logger.error(f"SMTP server disconnected: {str(err)}")
+        raise
     except aiosmtplib.SMTPTimeoutError as err: 
         logger.error(f"SMTP timeout error: {str(err)}")
+        raise
     except aiosmtplib.SMTPHeloError as err: 
         logger.error(f"Connect()/start_tls() handshake fail: {str(err)}")
+        raise
     except aiosmtplib.SMTPAuthError as err: 
         logger.error(f"Bad user/pass, login before TLS: {str(err)}")
+        raise
     except aiosmtplib.SMTPSenderRefused as err: 
         logger.error(f"Missing From/To in MIMEMultipart, rejected address: {str(err)}")
+        raise
     except aiosmtplib.SMTPDataError as err: 
         logger.error(f"send_message() — body rejected (size, spam, policy): {str(err)}")
+        raise
     except OSError as err: 
         logger.error(f"DNS / network down: {str(err)}")
+        raise
     finally:
         if smtp.is_connected:
             await smtp.quit()

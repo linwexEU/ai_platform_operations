@@ -12,6 +12,11 @@ class Role(Enum):
     Founder = "Founder"
 
 
+class DocumentStatus(Enum): 
+    Uploading = "Uploading"
+    Completed = "Completed"
+    
+
 class SenderType(Enum): 
     LLM = "LLM"
     Client = "Client"

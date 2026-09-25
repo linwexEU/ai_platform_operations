@@ -6,7 +6,7 @@ from sqlalchemy import String, Enum, DateTime, ForeignKey, Boolean, Integer, JSO
 from pgvector.sqlalchemy import Vector
 
 from app.infrastructure.database.base import Base
-from app.domain.core.enums import Role, SenderType, OperationType, OperationStatus
+from app.domain.core.enums import DocumentStatus, Role, SenderType, OperationType, OperationStatus
 
 
 class Client(Base): 
@@ -69,6 +69,7 @@ class Document(Base):
     mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     storage_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[DocumentStatus] = mapped_column(Enum(DocumentStatus, name="document_status"), default=DocumentStatus.Uploading)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
     client: Mapped["Client"] = relationship(back_populates="documents")

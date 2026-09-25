@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     SMTP_USER: str
     SMTP_PASS: str
     
+    AWS_ACCESS_KEY: str
+    AWS_ACCESS_SECRET_KEY: str
+    AWS_REGION_NAME: str
+    AWS_BUCKET_NAME: str
+    
     VERIFICATION_CODE_TEMPLATE_PATH: str
         
     @property
@@ -46,6 +51,14 @@ class Settings(BaseSettings):
     @property
     def REDIS_URL(self) -> str: 
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
+    
+    @property
+    def AWS_CREDENTIALS(self) -> dict[str, str]: 
+        return {
+            "aws_access_key_id": self.AWS_ACCESS_KEY,
+            "aws_secret_access_key": self.AWS_ACCESS_SECRET_KEY, 
+            "region_name": self.AWS_REGION_NAME
+        }
     
     
 settings = Settings()

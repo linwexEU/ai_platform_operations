@@ -3,6 +3,7 @@ from typing import Sequence
 
 from pydantic import BaseModel
 
+from app.domain.core.enums import DocumentStatus
 from app.infrastructure.database.models import Document
 
 
@@ -24,6 +25,7 @@ class SDocument(BaseModel):
     mime_type: str
     size_bytes: int
     storage_key: str
+    status: DocumentStatus
     created_at: datetime
     
     @staticmethod
@@ -34,6 +36,7 @@ class SDocument(BaseModel):
             mime_type=document.mime_type,
             size_bytes=document.size_bytes,
             storage_key=document.storage_key,
+            status=document.status,
             created_at=document.created_at
         )
 

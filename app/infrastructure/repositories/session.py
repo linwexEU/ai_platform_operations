@@ -1,11 +1,11 @@
-from datetime import datetime, timezone
 from typing import Optional, Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import update, select, func
+from sqlalchemy.orm import selectinload
+from sqlalchemy import delete, select, func
 
 from app.domain.interfaces.repositories.session import AbstractSessionRepository
-from app.infrastructure.database.models import Session
+from app.infrastructure.database.models import Session, SessionDocument
 
 
 class SessionRepository(AbstractSessionRepository): 
@@ -21,8 +21,7 @@ class SessionRepository(AbstractSessionRepository):
         result = await self.session.execute(
             select(Session)
             .where(
-                Session.client_id == client_id, 
-                Session.deleted_at.is_(None)
+                Session.client_id == client_id
             )
             .offset(offset)
             .limit(limit)
@@ -36,28 +35,29 @@ class SessionRepository(AbstractSessionRepository):
             )
             .select_from(Session)
             .where(
-                Session.client_id == client_id, 
-                Session.deleted_at.is_(None)
+                Session.client_id == client_id
             )
         )
     
     async def get_session_chat_by_id(self, session_id: int) -> Optional[Session]:
-        session_chat = await self.session.get(Session, session_id)
+        session_chat = await self.session.scalar(
+            select(Session)
+            .where(Session.id == session_id)
+            .options(
+                selectinload(Session.session_document)
+                .selectinload(SessionDocument.document)
+            )
+        )
         
         if session_chat is None: 
-            return None
-        
-        if session_chat.deleted_at: 
             return None
         
         return session_chat
     
     async def delete_session_chat(self, session_id: int) -> None:
-        now = datetime.now(timezone.utc)
         await self.session.execute(
-            update(Session)
+            delete(Session)
             .where(Session.id == session_id)
-            .values(deleted_at=now)
         )
         
     async def update_session_chat(self, session: Session, name: str) -> None:

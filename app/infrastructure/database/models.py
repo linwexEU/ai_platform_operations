@@ -29,7 +29,7 @@ class Client(Base):
 class RefreshToken(Base): 
     __tablename__ = "refresh_token"
     
-    client_id: Mapped[int] = mapped_column(ForeignKey("client.id"), nullable=False)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client.id", ondelete="CASCADE"), nullable=False)
     token_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked: Mapped[bool] = mapped_column (Boolean, default=False)
@@ -41,7 +41,7 @@ class RefreshToken(Base):
 class VerificationCode(Base): 
     __tablename__ = "verification_code"
     
-    client_id: Mapped[int] = mapped_column(ForeignKey("client.id"), nullable=False)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client.id", ondelete="CASCADE"), nullable=False)
     code: Mapped[str] = mapped_column(String(128), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     
@@ -54,9 +54,9 @@ class Session(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     client_id: Mapped[int] = mapped_column(ForeignKey("client.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     
     client: Mapped["Client"] = relationship(back_populates="sessions")
+    session_document: Mapped[list["SessionDocument"]] = relationship(back_populates="session", cascade="all, delete-orphan")
     messages: Mapped[list["Message"]] = relationship(back_populates="session")
     operations: Mapped[list["Operation"]] = relationship(back_populates="session")
     
@@ -74,12 +74,13 @@ class Document(Base):
     
     client: Mapped["Client"] = relationship(back_populates="documents")
     chunks: Mapped[list["Chunk"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+    session_document: Mapped[list["SessionDocument"]] = relationship(back_populates="document", cascade="all, delete-orphan")
 
 
 class Chunk(Base): 
     __tablename__ = "chunk"
     
-    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"), nullable=False)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id", ondelete="CASCADE"), nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list[float]] = mapped_column(Vector(1536), nullable=False)
@@ -95,8 +96,11 @@ class Chunk(Base):
 class SessionDocument(Base): 
     __tablename__ = "session_document"
     
-    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"), nullable=False)
-    session_id: Mapped[int] = mapped_column(ForeignKey("session.id"), nullable=False)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id", ondelete="CASCADE"), nullable=False)
+    session_id: Mapped[int] = mapped_column(ForeignKey("session.id", ondelete="CASCADE"), nullable=False)
+    
+    session: Mapped["Session"] = relationship(back_populates="session_document")
+    document: Mapped["Document"] = relationship(back_populates="session_document")
     
     __table_args__ = (
         UniqueConstraint("document_id", "session_id", name="uq_document_id_session_id"),
@@ -107,7 +111,7 @@ class Message(Base):
     __tablename__ = "message"
     
     sender: Mapped[SenderType] = mapped_column(Enum(SenderType), nullable=False)
-    session_id: Mapped[int] = mapped_column(ForeignKey("session.id"), nullable=False)
+    session_id: Mapped[int] = mapped_column(ForeignKey("session.id", ondelete="CASCADE"), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
@@ -118,7 +122,7 @@ class Operation(Base):
     __tablename__ = "operation"
     
     type: Mapped[OperationType] = mapped_column(Enum(OperationType), nullable=False)
-    session_id: Mapped[int] = mapped_column(ForeignKey("session.id"), nullable=False)
+    session_id: Mapped[int] = mapped_column(ForeignKey("session.id", ondelete="CASCADE"), nullable=False)
     params: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=True)
     status: Mapped[OperationStatus] = mapped_column(Enum(OperationStatus), default=OperationStatus.Pending)
     result_ref: Mapped[str] = mapped_column(String(128), nullable=True)

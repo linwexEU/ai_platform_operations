@@ -1,15 +1,16 @@
-import asyncio
-
 from fastapi import APIRouter, HTTPException, status
 
 from app.entrypoints.dependencies.auth import CurrActivatedClient
 from app.entrypoints.dependencies.session import SessionServiceDep
 from app.domain.exceptions.session import SessionIsNotFoundError
+from app.domain.exceptions.session_document import DocumentAlreadyAttachedError
+from app.domain.exceptions.document import DocumentNotFoundError
 from app.entrypoints.schemas.session import (
     CreateSessionRequest,
     CreateSessionResponse, 
     GetSessionsChatResponse, 
     SSession, 
+    SSessionFull,
     UpdateSessionRequest,
     UpdateSessionResponse
 )
@@ -43,9 +44,10 @@ async def get_sessions_chat(
 
 
 @router.get("/{session_id}")
-async def get_session_chat(session_id: int, curr_client: CurrActivatedClient, service: SessionServiceDep) -> SSession: 
+async def get_session_chat(session_id: int, curr_client: CurrActivatedClient, service: SessionServiceDep) -> SSessionFull: 
     try:
-        return await service.get_session_chat_by_session_id(curr_client.id, session_id)
+        session = await service.get_session_chat_by_session_id(curr_client.id, session_id)
+        return SSessionFull.from_orm(session)
     except SessionIsNotFoundError: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session is not found")
 
@@ -70,3 +72,35 @@ async def delete_session_chat(session_id: int, curr_client: CurrActivatedClient,
         await service.delete_session_chat(curr_client.id, session_id)
     except SessionIsNotFoundError: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session is not found") 
+
+
+@router.post("/{session_id}/attach/document/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def attach_document(
+    session_id: int, 
+    document_id: int, 
+    curr_client: CurrActivatedClient, 
+    service: SessionServiceDep
+) -> None:
+    try: 
+        await service.attach_document(curr_client.id, session_id, document_id) 
+    except SessionIsNotFoundError: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session is not found")
+    except DocumentNotFoundError: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    except DocumentAlreadyAttachedError: 
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document already attached")
+
+
+@router.post("/{session_id}/detach/document/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def detach_document(
+    session_id: int, 
+    document_id: int, 
+    curr_client: CurrActivatedClient, 
+    service: SessionServiceDep
+) -> None: 
+    try: 
+        await service.detach_document(curr_client.id, session_id, document_id) 
+    except SessionIsNotFoundError: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session is not found")
+    except DocumentNotFoundError: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")

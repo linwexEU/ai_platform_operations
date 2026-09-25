@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Sequence
 
 from pydantic import BaseModel
 
+from app.entrypoints.schemas.document import SDocument
 from app.infrastructure.database.models import Session
 
 
@@ -40,12 +40,30 @@ class UpdateSessionResponse(CreateSessionResponse):
         
 class SSession(CreateSessionResponse): 
     @staticmethod
-    def from_orm(session: Session) -> "SSession": 
+    def from_orm(session: Session) -> "SSession":       
         return SSession(
             id=session.id,
             name=session.name, 
             created_at=session.created_at
-        ) 
+        )
+        
+        
+class SSessionFull(CreateSessionResponse): 
+    documents: list[SDocument]
+    
+    @staticmethod
+    def from_orm(session: Session) -> "SSessionFull":
+        documents = []
+        for session_document in session.session_document: 
+            documents.append(
+                SDocument.from_orm(session_document.document)
+            )       
+        return SSessionFull(
+            id=session.id,
+            name=session.name, 
+            created_at=session.created_at, 
+            documents=documents
+        )
 
 
 class GetSessionsChatResponse(BaseModel): 

@@ -64,13 +64,12 @@ class SessionService:
             await uow.session_repo.delete_session_chat(session_id)
     
     async def attach_document(self, client_id: int, session_id: int, document_id: int) -> None: 
-        async with UnitOfWork() as uow: 
-            await self._validate_session_and_document(client_id, session_id, document_id, uow)
-            
-            try:
+        try:
+            async with UnitOfWork() as uow: 
+                await self._validate_session_and_document(client_id, session_id, document_id, uow)
                 await uow.session_document_repo.attach_document_to_session(session_id, document_id)
-            except IntegrityError: 
-                raise DocumentAlreadyAttachedError()
+        except IntegrityError: 
+            raise DocumentAlreadyAttachedError()
             
     async def detach_document(self, client_id: int, session_id: int, document_id: int) -> None: 
         async with UnitOfWork() as uow: 

@@ -42,7 +42,14 @@ class Settings(BaseSettings):
     AWS_REGION_NAME: str
     AWS_BUCKET_NAME: str
     
+    OLLAMA_CHAT_MODEL: str
+    OLLAMA_EMBEDDING_MODEL: str
+    
     VERIFICATION_CODE_TEMPLATE_PATH: str
+    TEMP_FOLDER_PATH: str
+    
+    CHUNK_SIZE: int
+    CHUNK_OVERLAP: int
         
     @property
     def DATABASE_URL(self) -> str: 

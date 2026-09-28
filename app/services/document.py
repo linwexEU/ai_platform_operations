@@ -1,9 +1,12 @@
 import asyncio
+import pathlib
 from typing import Sequence
+import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.entrypoints.tasks.document import task_delete_file_from_s3
+from app.entrypoints.tasks.chunk import task_create_chunks
 from app.infrastructure.object_storage.aws_s3 import ObjectStorage
 from app.infrastructure.repositories.document import DocumentRepository
 from app.infrastructure.uow.uow import UnitOfWork
@@ -36,6 +39,9 @@ class DocumentService:
             raise ExceededDocumentSizeError()
         
         # Add document to the primary storage & Generate upload_url
+        suffix = pathlib.Path(filename).suffix.lower()
+        storage_key = f"docs/{client_id}/{uuid.uuid4().hex}{suffix}"
+        
         async def document_wrapper() -> Document:
             async with UnitOfWork() as uow: 
                 document = await uow.document_repo.create_document(
@@ -43,13 +49,13 @@ class DocumentService:
                     filename, 
                     mime_type, 
                     size_bytes, 
-                    f"docs/{filename}"
+                    storage_key
                 )
                 return document
             
         document, url = await asyncio.gather(
             document_wrapper(), 
-            self.object_storage.generate_upload_link(filename) 
+            self.object_storage.generate_upload_link(storage_key) 
         )
 
         return document, url
@@ -69,6 +75,12 @@ class DocumentService:
                 raise DocumentNotFoundError()
 
             await uow.document_repo.mark_as_completed(document)
+            
+        # Generate download link
+        url = await self.object_storage.generate_file_link(document.storage_key)
+        
+        # Create chunks
+        task_create_chunks.delay(document.id, url, document.storage_key)
 
     async def delete_document(self, client_id: int, document_id: int) -> None: 
         # Delete from primary storage
@@ -79,9 +91,10 @@ class DocumentService:
                 raise DocumentNotFoundError()
             
             await uow.document_repo.delete_document(document_id)
+            
+            # Delete chunks
+            await uow.chunk_repo.delete_chunks(document.id)
         
         # Delete from object storage
         task_delete_file_from_s3.delay(document.storage_key)
-        
-        # TODO: delete document's chunks
             

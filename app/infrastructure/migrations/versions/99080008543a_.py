@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 020add382d60
+Revision ID: 99080008543a
 Revises: 
-Create Date: 2026-09-19 14:36:11.444621
+Create Date: 2026-09-29 12:18:34.710464
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '020add382d60'
+revision: str = '99080008543a'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,7 +25,7 @@ def upgrade() -> None:
     op.create_table('client',
     sa.Column('first_name', sa.String(length=128), nullable=False),
     sa.Column('last_name', sa.String(length=128), nullable=True),
-    sa.Column('role', sa.Enum('Recruiter', 'Engineer', 'Designer', 'Marketing', 'Accountant', 'ITSupport', 'CustomerSupport', 'Founder', name='role'), nullable=False),
+    sa.Column('role', sa.Enum('Recruiter', 'Engineer', 'Designer', 'Marketing', 'Accountant', 'ITSupport', 'CustomerSupport', 'Founder', name='client_role'), nullable=False),
     sa.Column('email', sa.String(length=128), nullable=False),
     sa.Column('activated', sa.Boolean(), nullable=False),
     sa.Column('password_hash', sa.String(length=255), nullable=False),
@@ -40,6 +40,7 @@ def upgrade() -> None:
     sa.Column('mime_type', sa.String(length=128), nullable=False),
     sa.Column('size_bytes', sa.Integer(), nullable=False),
     sa.Column('storage_key', sa.String(length=128), nullable=False),
+    sa.Column('status', sa.Enum('Uploading', 'Queued', 'Processing', 'Failed', 'Completed', name='document_status'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['client_id'], ['client.id'], ),
@@ -52,56 +53,92 @@ def upgrade() -> None:
     sa.Column('revoked', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['client_id'], ['client.id'], ),
+    sa.ForeignKeyConstraint(['client_id'], ['client.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('session',
     sa.Column('name', sa.String(length=128), nullable=False),
     sa.Column('client_id', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['client_id'], ['client.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('verification_code',
+    sa.Column('client_id', sa.Integer(), nullable=False),
+    sa.Column('code', sa.String(length=128), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['client_id'], ['client.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('chunk',
     sa.Column('document_id', sa.Integer(), nullable=False),
     sa.Column('chunk_index', sa.Integer(), nullable=False),
     sa.Column('text', sa.Text(), nullable=False),
-    sa.Column('embedding', pgvector.sqlalchemy.vector.VECTOR(dim=1536), nullable=False),
+    sa.Column('embedding', pgvector.sqlalchemy.vector.VECTOR(dim=768), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ),
+    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('document_id', 'chunk_index', name='uq_document_chunk_index')
     )
+    op.create_table('ingestion_job',
+    sa.Column('document_id', sa.Integer(), nullable=False),
+    sa.Column('status', sa.Enum('Queued', 'Processing', 'Completed', 'Failed', 'Cancelled', name='ingestion_job_status'), nullable=False),
+    sa.Column('stage', sa.Enum('Pending', 'Downloading', 'Extracting', 'Chunking', 'Embedding', 'Persisting', 'Finalizing', name='ingestion_stage'), nullable=False),
+    sa.Column('attempt_count', sa.SMALLINT(), nullable=False),
+    sa.Column('max_attempts', sa.SMALLINT(), nullable=False),
+    sa.Column('total_chunks', sa.Integer(), nullable=True),
+    sa.Column('processed_chunks', sa.Integer(), nullable=False),
+    sa.Column('idempotency_key', sa.String(length=128), nullable=False),
+    sa.Column('worker_id', sa.String(length=128), nullable=True),
+    sa.Column('lease_until', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('last_heartbeat_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('last_error_code', sa.String(length=64), nullable=True),
+    sa.Column('last_error_message', sa.Text(), nullable=True),
+    sa.Column('chunking_version', sa.String(length=64), nullable=False),
+    sa.Column('embedding_model', sa.String(length=128), nullable=False),
+    sa.Column('embedding_dimension', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('document_id', 'idempotency_key', name='uq_doc_idempotency_key')
+    )
+    op.create_index(op.f('ix_ingestion_job_document_id'), 'ingestion_job', ['document_id'], unique=False)
+    op.create_index(op.f('ix_ingestion_job_lease_until'), 'ingestion_job', ['lease_until'], unique=False)
+    op.create_index(op.f('ix_ingestion_job_status'), 'ingestion_job', ['status'], unique=False)
     op.create_table('message',
-    sa.Column('sender', sa.Enum('LLM', 'Client', name='sendertype'), nullable=False),
+    sa.Column('sender', sa.Enum('LLM', 'Client', name='sender_type'), nullable=False),
     sa.Column('session_id', sa.Integer(), nullable=False),
     sa.Column('text', sa.Text(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['session_id'], ['session.id'], ),
+    sa.ForeignKeyConstraint(['session_id'], ['session.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('operation',
-    sa.Column('type', sa.Enum('GenerateDoc', name='operationtype'), nullable=False),
+    sa.Column('type', sa.Enum('GenerateDoc', name='operation_type'), nullable=False),
     sa.Column('session_id', sa.Integer(), nullable=False),
     sa.Column('params', sa.JSON(), nullable=True),
-    sa.Column('status', sa.Enum('Pending', 'Done', 'Failed', name='operationstatus'), nullable=False),
+    sa.Column('status', sa.Enum('Pending', 'Done', 'Failed', name='operation_status'), nullable=False),
     sa.Column('result_ref', sa.String(length=128), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['session_id'], ['session.id'], ),
+    sa.ForeignKeyConstraint(['session_id'], ['session.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('session_document',
     sa.Column('document_id', sa.Integer(), nullable=False),
     sa.Column('session_id', sa.Integer(), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ),
-    sa.ForeignKeyConstraint(['session_id'], ['session.id'], ),
+    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['session_id'], ['session.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('document_id', 'session_id', name='uq_document_id_session_id')
     )
@@ -114,7 +151,12 @@ def downgrade() -> None:
     op.drop_table('session_document')
     op.drop_table('operation')
     op.drop_table('message')
+    op.drop_index(op.f('ix_ingestion_job_status'), table_name='ingestion_job')
+    op.drop_index(op.f('ix_ingestion_job_lease_until'), table_name='ingestion_job')
+    op.drop_index(op.f('ix_ingestion_job_document_id'), table_name='ingestion_job')
+    op.drop_table('ingestion_job')
     op.drop_table('chunk')
+    op.drop_table('verification_code')
     op.drop_table('session')
     op.drop_table('refresh_token')
     op.drop_table('document')

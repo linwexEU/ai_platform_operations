@@ -14,6 +14,9 @@ class Role(Enum):
 
 class DocumentStatus(Enum): 
     Uploading = "Uploading"
+    Queued = "Queued"
+    Processing = "Processing"
+    Failed = "Failed"
     Completed = "Completed"
     
 
@@ -30,3 +33,21 @@ class OperationStatus(Enum):
     Pending = "Pending"
     Done = "Done" 
     Failed = "Failed"
+
+
+class IngestionJobStatus(Enum): 
+    Queued = "Queued"
+    Processing = "Processing"
+    Completed = "Completed"
+    Failed = "Failed"
+    Cancelled = "Cancelled"
+    
+    
+class IngestionStage(Enum): 
+    Pending = "Pending"
+    Downloading = "Downloading"
+    Extracting = "Extracting"
+    Chunking = "Chunking"
+    Embedding = "Embedding"
+    Persisting = "Persisting"
+    Finalizing = "Finalizing"

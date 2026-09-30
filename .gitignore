@@ -9,6 +9,7 @@ wheels/
 .env
 .env-docker
 .vscode
+.opencode
 
 # Virtual environments
 .venv

@@ -15,12 +15,12 @@ class IngestionJobRepository(AbstractIngestionJobRepository):
         
     async def create_job(
         self, 
-        document_id, 
-        idempotency_key, 
-        chunking_version, 
-        embedding_model, 
-        embedding_dimension, 
-        max_attempts = 3
+        document_id: int, 
+        idempotency_key: str, 
+        chunking_version: str, 
+        embedding_model: str, 
+        embedding_dimension: int, 
+        max_attempts: int = 3
     ) -> IngestionJob:
         job = IngestionJob(
             document_id=document_id, 
@@ -41,6 +41,7 @@ class IngestionJobRepository(AbstractIngestionJobRepository):
         self, 
         job_id: int, 
         worker_id: str, 
+        started_at: datetime,
         lease_until: datetime
     ) -> Optional[IngestionJob]:
         now = datetime.now(timezone.utc)
@@ -61,7 +62,8 @@ class IngestionJobRepository(AbstractIngestionJobRepository):
                 status=IngestionJobStatus.Processing,
                 worker_id=worker_id, 
                 lease_until=lease_until,
-                attempt_count=IngestionJob.attempt_count + 1
+                attempt_count=IngestionJob.attempt_count + 1,
+                started_at=started_at
             )
             .returning(IngestionJob)
         )
@@ -74,52 +76,74 @@ class IngestionJobRepository(AbstractIngestionJobRepository):
         job_id: int, 
         worker_id: str, 
         stage: IngestionStage
-    ) -> Optional[bool]:
-        job = await self._get_job(job_id, worker_id)
+    ) -> bool:
+        stmt = (
+            update(IngestionJob)
+            .where(
+                IngestionJob.id == job_id,
+                IngestionJob.worker_id == worker_id
+            )
+            .values(
+                stage=stage
+            )
+            .returning(
+                IngestionJob.id
+            )
+        )
+        job = await self.session.execute(stmt)
         
-        if job is not None: 
-            job.stage = stage
-        else: 
+        if not job.scalar_one_or_none(): 
             return False
-
-    async def update_status(
-        self, 
-        job_id: int, 
-        worker_id: str, 
-        status: IngestionJobStatus
-    ) -> Optional[bool]:
-        job = await self._get_job(job_id, worker_id)
-        
-        if job is not None: 
-            job.status = status
-        else: 
-            return False
+        return True
 
     async def set_total_chunks(
         self, 
         job_id: int, 
         worker_id: str, 
         total_chunks: int
-    ) -> Optional[bool]:
-        job = await self._get_job(job_id, worker_id)
+    ) -> bool:
+        stmt = (
+            update(IngestionJob)
+            .where(
+                IngestionJob.id == job_id,
+                IngestionJob.worker_id == worker_id
+            )
+            .values(
+                total_chunks=total_chunks
+            )
+            .returning(
+                IngestionJob.id
+            )
+        )
+        job = await self.session.execute(stmt)
         
-        if job is not None: 
-            job.total_chunks = total_chunks
-        else: 
+        if not job.scalar_one_or_none(): 
             return False
+        return True
             
     async def update_progress(
         self, 
         job_id: int, 
         worker_id: str, 
         processed_chunks: int
-    ) -> Optional[bool]:
-        job = await self._get_job(job_id, worker_id)
+    ) -> bool:
+        stmt = (
+            update(IngestionJob)
+            .where(
+                IngestionJob.id == job_id,
+                IngestionJob.worker_id == worker_id
+            )
+            .values(
+                processed_chunks=processed_chunks
+            )
+            .returning(IngestionJob.id)
+        )
         
-        if job is not None: 
-            job.processed_chunks = processed_chunks
-        else: 
+        job = await self.session.execute(stmt)
+        
+        if not job.scalar_one_or_none(): 
             return False
+        return True
 
     async def heartbeat(
         self, 
@@ -127,29 +151,50 @@ class IngestionJobRepository(AbstractIngestionJobRepository):
         worker_id: str, 
         heartbeat_at: datetime, 
         lease_until: datetime
-    ) -> Optional[bool]:
-        job = await self._get_job(job_id, worker_id)
+    ) -> bool:
+        stmt = (
+            update(IngestionJob)
+            .where(
+                IngestionJob.id == job_id,
+                IngestionJob.worker_id == worker_id
+            )
+            .values(
+                last_heartbeat_at=heartbeat_at,
+                lease_until=lease_until
+            )
+            .returning(IngestionJob.id)
+        )
         
-        if job is not None: 
-            job.last_heartbeat_at = heartbeat_at
-            job.lease_until = lease_until
-        else: 
+        job = await self.session.execute(stmt)
+        
+        if not job.scalar_one_or_none(): 
             return False
+        return True
             
     async def mark_completed(
         self, 
         job_id: int, 
         worker_id: str, 
         finished_at: datetime
-    ) -> Optional[bool]:
-        job = await self._get_job(job_id, worker_id)
-        
-        if job is not None: 
-            job.status = IngestionJobStatus.Completed
-            job.stage =IngestionStage.Finalizing
-            job.finished_at = finished_at
-        else: 
+    ) -> bool:
+        stmt = (
+            update(IngestionJob)
+            .where(
+                IngestionJob.id == job_id,
+                IngestionJob.worker_id == worker_id
+            )
+            .values(
+                status=IngestionJobStatus.Completed,
+                stage=IngestionStage.Completed,
+                finished_at=finished_at
+            )
+            .returning(IngestionJob.id)
+        )
+        job = await self.session.execute(stmt)
+                
+        if not job.scalar_one_or_none(): 
             return False
+        return True
             
     async def mark_failed(
         self, 
@@ -158,37 +203,23 @@ class IngestionJobRepository(AbstractIngestionJobRepository):
         error_code: str, 
         error_message: str, 
         finished_at: datetime
-    ) -> Optional[bool]:
-        job = await self._get_job(job_id, worker_id)
-        
-        if job is not None: 
-            job.status = IngestionJobStatus.Failed
-            job.last_error_code = error_code
-            job.last_error_message = error_message
-            job.finished_at = finished_at
-        else: 
-            return False
-            
-    async def cancel_job(
-        self, 
-        job_id: int, 
-        worker_id: str, 
-        finished_at: datetime
-    ) -> Optional[bool]:
-        job = await self._get_job(job_id, worker_id)
-                
-        if job is not None: 
-            job.status = IngestionJobStatus.Cancelled
-            job.finished_at = finished_at
-        else: 
-            return False
-        
-    async def _get_job(self, job_id: int, worker_id: str) -> Optional[IngestionJob]: 
-        return await self.session.scalar(
-            select(IngestionJob)
+    ) -> bool:
+        stmt = (
+            update(IngestionJob)
             .where(
-                IngestionJob.id == job_id, 
+                IngestionJob.id == job_id,
                 IngestionJob.worker_id == worker_id
             )
+            .values(
+                status=IngestionJobStatus.Failed,
+                last_error_code=error_code,
+                last_error_message=error_message,
+                finished_at=finished_at
+            )
+            .returning(IngestionJob.id)
         )
-        
+        job = await self.session.execute(stmt)
+                        
+        if not job.scalar_one_or_none(): 
+            return False
+        return True

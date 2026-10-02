@@ -18,7 +18,8 @@ class ClientRepository(AbstractClientRepository):
         role: Role, 
         email: str, 
         password_hash: str, 
-        last_name: str | None = None
+        last_name: str | None = None, 
+        activated: bool = False
     ) -> Client:
         client = Client(
             first_name=first_name, 
@@ -26,6 +27,7 @@ class ClientRepository(AbstractClientRepository):
             role=role,
             email=email,
             password_hash=password_hash,
+            activated=activated
         )
         self.session.add(client)
         return client

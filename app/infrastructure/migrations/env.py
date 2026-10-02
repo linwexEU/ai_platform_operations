@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.infrastructure.database.base import Base
-from app.infrastructure.database.models import Client, RefreshToken, Session, Document, Chunk, SessionDocument, Message, Operation, IngestionJob  # noqa
+from app.infrastructure.database.models import Client, RefreshToken, Session, Document, Chunk, SessionDocument, Message, Operation, IngestionJob, Outbox  # noqa
 from app.domain.core.config import settings
 
 # this is the Alembic Config object, which provides

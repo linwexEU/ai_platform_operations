@@ -1,49 +1,21 @@
 import asyncio
-import os
-import pathlib
 
-from app.infrastructure.embeddings.ollama import generate_embeddings
-from app.infrastructure.reader.pdf_reader import PDFReader
-from app.infrastructure.uow.uow import UnitOfWork
-from app.infrastructure.http_clients.aiohttp_client import HttpClient
-from app.infrastructure.chunking.splitter import document_splitter
-from app.domain.core.config import settings
+from app.infrastructure.database.base import engine
+from app.domain.exceptions.base import AppError
 from app.infrastructure.worker.celery import app
+from app.services.ingestion_job import IngestionJobService
 
 
-async def create_chunks(doc_id: int, doc_url: str, storage_key: str) -> None:
-    storage_key = storage_key.replace("/", "_")
-    
-    # Init HttpClient
-    client = HttpClient()
-    
-    # Download doc to memory
-    await client.download(doc_url, storage_key)
-    
-    # Init reader
-    reader = PDFReader(pathlib.Path(settings.TEMP_FOLDER_PATH) / pathlib.Path(storage_key)) 
-    document_text = await asyncio.to_thread(reader.get_cleaned_text)
-    
-    # Spit document text
-    chunks = document_splitter(document_text)
-
-    # Get embeddings
-    embeddings = await generate_embeddings(client.session, chunks)
-    
-    # Save chunks
-    async with UnitOfWork() as uow: 
-        for chunk_index, chunk in enumerate(chunks):
-            await uow.chunk_repo.create_chunk(
-                doc_id, chunk_index, chunk, embeddings[chunk_index]
-            )
-    
-    # Close session  
-    await client.close_session()
-    
-    # Clear temp folder
-    os.remove(pathlib.Path(settings.TEMP_FOLDER_PATH) / pathlib.Path(storage_key))
+async def _run(job_id: int, worker_id: str) -> None: 
+    try: 
+        await IngestionJobService().process_job(job_id, worker_id)
+    finally: 
+        await engine.dispose()
 
 
-@app.task()
-def task_create_chunks(doc_id: int, doc_url: str, storage_key: str) -> None: 
-    asyncio.run(create_chunks(doc_id, doc_url, storage_key))
+@app.task(bind=True, acks_late=True, max_retries=3)
+def task_create_chunks(self, job_id: int) -> None: 
+    try:
+        asyncio.run(_run(job_id, self.request.id))
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=5)

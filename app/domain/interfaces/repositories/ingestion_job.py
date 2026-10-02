@@ -26,6 +26,7 @@ class AbstractIngestionJobRepository(ABC):
         self, 
         job_id: int, 
         worker_id: str, 
+        started_at: datetime,
         lease_until: datetime
     ) -> Optional[IngestionJob]: ...
     
@@ -35,15 +36,7 @@ class AbstractIngestionJobRepository(ABC):
         job_id: int,
         worker_id: str,
         stage: IngestionStage,
-    ) -> Optional[bool]: ...
-    
-    @abstractmethod
-    async def update_status(
-        self,
-        job_id: int, 
-        worker_id: str, 
-        status: IngestionJobStatus
-    ) -> Optional[bool]: ...
+    ) -> bool: ...
     
     @abstractmethod
     async def set_total_chunks(
@@ -51,7 +44,7 @@ class AbstractIngestionJobRepository(ABC):
         job_id: int, 
         worker_id: str, 
         total_chunks: int
-    ) -> Optional[bool]: ...
+    ) -> bool: ...
     
     @abstractmethod
     async def update_progress(
@@ -59,7 +52,7 @@ class AbstractIngestionJobRepository(ABC):
         job_id: int, 
         worker_id: str,
         processed_chunks: int,
-    ) -> Optional[bool]: ...
+    ) -> bool: ...
     
     @abstractmethod
     async def heartbeat(
@@ -68,7 +61,7 @@ class AbstractIngestionJobRepository(ABC):
         worker_id: str, 
         heartbeat_at: datetime, 
         lease_until: datetime
-    ) -> Optional[bool]: ... 
+    ) -> bool: ... 
     
     @abstractmethod
     async def mark_completed(
@@ -76,7 +69,7 @@ class AbstractIngestionJobRepository(ABC):
         job_id: int, 
         worker_id: str, 
         finished_at: datetime
-    ) -> Optional[bool]: ...
+    ) -> bool: ...
     
     @abstractmethod
     async def mark_failed(
@@ -86,12 +79,4 @@ class AbstractIngestionJobRepository(ABC):
         error_code: str,
         error_message: str,
         finished_at: datetime,
-    ) -> Optional[bool]: ...
-    
-    @abstractmethod
-    async def cancel_job(
-        self, 
-        job_id: int,
-        worker_id: str,
-        finished_at: datetime
-    ) -> Optional[bool]: ...
+    ) -> bool: ...

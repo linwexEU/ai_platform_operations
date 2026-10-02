@@ -4,6 +4,7 @@ from typing import Sequence
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.entrypoints.tasks.document import task_delete_file_from_s3
 from app.entrypoints.tasks.chunk import task_create_chunks
@@ -11,6 +12,7 @@ from app.infrastructure.object_storage.aws_s3 import ObjectStorage
 from app.infrastructure.repositories.document import DocumentRepository
 from app.infrastructure.uow.uow import UnitOfWork
 from app.infrastructure.database.models import Document
+from app.domain.core.config import settings
 from app.domain.exceptions.document import (
     InvalidDocumentMimeTypeError, 
     ExceededDocumentSizeError, 
@@ -68,19 +70,30 @@ class DocumentService:
         return documents, total_count
 
     async def mark_as_completed(self, client_id: int, document_id: int) -> None:
-        async with UnitOfWork() as uow: 
-            document = await uow.document_repo.get_document_by_id(document_id) 
-            
-            if document is None or document.client_id != client_id: 
-                raise DocumentNotFoundError()
+        try:
+            async with UnitOfWork() as uow: 
+                document = await uow.document_repo.get_document_by_id(document_id) 
+                
+                if document is None or document.client_id != client_id: 
+                    raise DocumentNotFoundError()
 
-            await uow.document_repo.mark_as_completed(document)
-            
-        # Generate download link
-        url = await self.object_storage.generate_file_link(document.storage_key)
-        
-        # Create chunks
-        task_create_chunks.delay(document.id, url, document.storage_key)
+                await uow.document_repo.mark_as_completed(document)
+                
+                # Create job for background chunking
+                idempotency_key = f"{document.storage_key}:v{settings.CHUNKING_VERSION}:{settings.OLLAMA_EMBEDDING_MODEL}:{settings.EMBEDDING_DIMENSION}"
+                
+                job = await uow.ingestion_job_repo.create_job(
+                    document.id, 
+                    idempotency_key, 
+                    f"v{settings.CHUNKING_VERSION}", 
+                    settings.OLLAMA_EMBEDDING_MODEL, 
+                    settings.EMBEDDING_DIMENSION
+                )
+                
+                # Add this job to the outbox table
+                await uow.outbox_repo.create_event(job.id, "CREATE_CHUNKS")
+        except IntegrityError:
+            pass
 
     async def delete_document(self, client_id: int, document_id: int) -> None: 
         # Delete from primary storage

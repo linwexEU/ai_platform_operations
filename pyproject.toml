@@ -15,15 +15,25 @@ dependencies = [
     "celery>=5.6.3",
     "dotenv>=0.9.9",
     "fastapi>=0.141.1",
+    "httpx>=0.28.1",
     "langchain-text-splitters>=1.1.2",
     "pgvector>=0.5.0",
     "pydantic-settings>=2.15.0",
     "pydantic[email]>=2.13.5",
     "pyjwt>=2.14.0",
     "pypdf>=6.19.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
     "python-multipart>=0.0.32",
     "redis>=8.1.0",
     "sqlalchemy>=2.0.54",
     "tenacity>=9.1.4",
     "uvicorn>=0.53.0",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+asyncio_mode = "auto"

@@ -13,7 +13,8 @@ class AbstractClientRepository(ABC):
         role: Role,
         email: str,
         password_hash: str, 
-        last_name: str | None = None
+        last_name: str | None = None,
+        activated: bool = False
     ) -> Client: ...
 
     @abstractmethod

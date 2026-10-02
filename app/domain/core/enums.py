@@ -40,14 +40,11 @@ class IngestionJobStatus(Enum):
     Processing = "Processing"
     Completed = "Completed"
     Failed = "Failed"
-    Cancelled = "Cancelled"
     
     
 class IngestionStage(Enum): 
     Pending = "Pending"
     Downloading = "Downloading"
-    Extracting = "Extracting"
     Chunking = "Chunking"
     Embedding = "Embedding"
-    Persisting = "Persisting"
-    Finalizing = "Finalizing"
+    Completed = "Completed"

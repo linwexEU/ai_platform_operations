@@ -1,0 +1,9 @@
+[
+    {
+        "client_id": "1",
+        "filename": "mock_resume.pdf",
+        "mime_type": "application/pdf",
+        "size_bytes": "1234",
+        "storage_key": "docs_1_mock_resume.pdf"
+    }
+]

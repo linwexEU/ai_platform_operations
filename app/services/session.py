@@ -1,5 +1,6 @@
 import asyncio
-from typing import Sequence, Optional
+import logging
+from typing import Sequence, Optional, AsyncGenerator
 
 from aiohttp import ClientSession
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,7 @@ from app.infrastructure.database.models import Message, Session
 from app.infrastructure.repositories.session import SessionRepository
 from app.infrastructure.uow.uow import UnitOfWork
 from app.infrastructure.embeddings.ollama import generate_embedding
+from app.infrastructure.llm.ollama import stream_llm_response
 
 
 class SessionService: 
@@ -89,22 +91,42 @@ class SessionService:
                 uow.message_repo.get_messages_count(session_id)
             )
             return messages, total
+        
+    async def token_event_stream(self, client_id: int, session_id: int, prompt: str) -> AsyncGenerator[bytes]: 
+        # Build chat history
+        history = await self._build_history(client_id, session_id, prompt)
+        
+        try:
+            response = ""
+            async for token in stream_llm_response(history, self.http_client):
+                response += token
+                yield self._sse_format(data=token).encode("utf-8")
+            yield self._sse_format(data="{}", event="done").encode("utf-8")
+            
+            # Save messages
+            await asyncio.gather(
+                self.save_message(client_id, session_id, SenderType.Client, prompt),
+                self.save_message(client_id, session_id, SenderType.LLM, response)
+            )
+        except Exception as exc: 
+            logging.error(f"Token Event Stream error = Client(Id={client_id}), Session(Id={session_id}). Error: {str(exc)}")
+            yield self._sse_format(data="{'error': 'stream_failed'}", event="error").encode("utf-8")
     
     async def _validate_session_and_document(
-            self, 
-            client_id: int, 
-            session_id: int, 
-            document_id: int, 
-            uow: UnitOfWork
-        ) -> None: 
-            session = await uow.session_repo.get_session_chat_by_id(session_id)
-            document = await uow.document_repo.get_document_by_id(document_id)
-            
-            if session is None or session.client_id != client_id: 
-                raise SessionIsNotFoundError()
-            
-            if document is None or document.client_id != client_id: 
-                raise DocumentNotFoundError()
+        self, 
+        client_id: int, 
+        session_id: int, 
+        document_id: int, 
+        uow: UnitOfWork
+    ) -> None: 
+        session = await uow.session_repo.get_session_chat_by_id(session_id)
+        document = await uow.document_repo.get_document_by_id(document_id)
+        
+        if session is None or session.client_id != client_id: 
+            raise SessionIsNotFoundError()
+        
+        if document is None or document.client_id != client_id: 
+            raise DocumentNotFoundError()
             
     async def _validate_session(self, client_id: int, session_id: int, uow: UnitOfWork) -> Session: 
         session = await uow.session_repo.get_session_chat_by_id(session_id)
@@ -115,12 +137,42 @@ class SessionService:
     async def _find_similar_chunks(
         self,
         session_id: int, 
-        input_: str
+        input_: str,
+        uow: UnitOfWork
     ) -> list[str]: 
         # Generate embedding for input
         embedding_input = await generate_embedding(self.http_client, input_)
         
-        # Retrieve similar
-        async with UnitOfWork() as uow: 
-            chunks = await uow.chunk_repo.retrieve_similar(session_id, embedding_input)
+        # Retrieve similar 
+        chunks = await uow.chunk_repo.retrieve_similar(session_id, embedding_input)
+        
         return [chunk.text for chunk in chunks]
+
+    def _sse_format(self, data: str, event: str | None = None) -> str: 
+        lines = []
+        if event: 
+            lines.append(f"event: {event}")
+        for line in data.splitlines(): 
+            lines.append(f"data: {line}")
+        lines.append("")
+        return "\n".join(lines)
+        
+    async def _get_messages(self, session_id: int, uow: UnitOfWork) -> list[str]:
+        messages = await uow.message_repo.get_messages(session_id, limit=20)
+        return [{"role": message.sender.value, "content": message.text} for message in messages]
+
+    async def _build_history(self, client_id: int, session_id: int, prompt: str) -> list[dict[str, str]]:
+        async with UnitOfWork() as uow:
+            await self._validate_session(client_id, session_id, uow)
+            chunks = await self._find_similar_chunks(session_id, prompt, uow)
+            context = "\n\n".join(chunks)
+            messages = await self._get_messages(session_id, uow)
+            
+            return [
+                {
+                    "role": "system", 
+                    "content": "Answer using the context below. If it doesn't contain the answer, say so.\n"
+                },
+                *messages, 
+                {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {prompt}"}
+            ]

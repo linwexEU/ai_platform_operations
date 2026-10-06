@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from app.entrypoints.dependencies.auth import CurrActivatedClient
 from app.entrypoints.dependencies.session import SessionServiceDep
@@ -133,5 +134,18 @@ async def get_messages(
 
 
 @router.get("/{session_id}/stream")
-async def stream(session_id: int, curr_client: CurrActivatedClient): 
-    pass 
+async def stream(
+    session_id: int, 
+    prompt: str,
+    curr_client: CurrActivatedClient, 
+    service: SessionServiceDep
+) -> StreamingResponse: 
+    return StreamingResponse(
+        service.token_event_stream(curr_client.id, session_id, prompt), 
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive", 
+            "X-Accel-Buffering": "no"
+        }
+    ) 

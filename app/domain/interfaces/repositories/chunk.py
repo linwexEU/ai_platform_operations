@@ -13,3 +13,11 @@ class AbstractChunkRepository(ABC):
     
     @abstractmethod
     async def delete_chunks(self, document_id: int) -> None: ...
+    
+    @abstractmethod
+    async def retrieve_similar(
+        self,
+        session_id: int,
+        query_embedding: list[float],
+        top_k: int = 5,
+    ) -> Sequence[Chunk]: ...

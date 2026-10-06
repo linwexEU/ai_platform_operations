@@ -1,7 +1,6 @@
 import asyncio
 
 from app.infrastructure.database.base import engine
-from app.domain.exceptions.base import AppError
 from app.infrastructure.worker.celery import app
 from app.services.ingestion_job import IngestionJobService
 

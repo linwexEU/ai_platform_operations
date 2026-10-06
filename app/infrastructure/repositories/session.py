@@ -45,7 +45,8 @@ class SessionRepository(AbstractSessionRepository):
             .where(Session.id == session_id)
             .options(
                 selectinload(Session.session_document)
-                .selectinload(SessionDocument.document)
+                .selectinload(SessionDocument.document),
+                selectinload(Session.messages)
             )
         )
         

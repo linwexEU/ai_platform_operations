@@ -14,7 +14,6 @@ from app.infrastructure.uow.uow import UnitOfWork
 from app.infrastructure.reader.pdf_reader import PDFReader
 from app.infrastructure.embeddings.ollama import generate_embedding
 from app.infrastructure.chunking.splitter import document_splitter
-from app.domain.exceptions.base import AppError
 from app.domain.exceptions.embedding import (
     EmbeddingDimensionError,
     EmbeddingValueError

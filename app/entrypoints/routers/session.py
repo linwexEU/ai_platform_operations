@@ -14,6 +14,10 @@ from app.entrypoints.schemas.session import (
     UpdateSessionRequest,
     UpdateSessionResponse
 )
+from app.entrypoints.schemas.message import (
+    CreateMessageResponse,
+    GetMessagesResponse
+)
 
 router = APIRouter()
 
@@ -104,3 +108,30 @@ async def detach_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session is not found")
     except DocumentNotFoundError: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+
+@router.post("/{session_id}/message", status_code=status.HTTP_204_NO_CONTENT)
+async def save_message(
+    session_id: int, 
+    payload: CreateMessageResponse,
+    curr_client: CurrActivatedClient, 
+    service: SessionServiceDep
+) -> None: 
+    await service.save_message(curr_client.id, session_id, payload.sender, payload.text) 
+
+
+@router.get("/{session_id}/message")
+async def get_messages(
+    session_id: int, 
+    curr_client: CurrActivatedClient, 
+    service: SessionServiceDep,
+    offset: int = 0, 
+    limit: int = 50
+) -> GetMessagesResponse: 
+    messages, total = await service.get_messages(curr_client.id, session_id, offset, limit)
+    return GetMessagesResponse.from_orm(messages, total)
+
+
+@router.get("/{session_id}/stream")
+async def stream(session_id: int, curr_client: CurrActivatedClient): 
+    pass 

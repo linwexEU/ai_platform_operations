@@ -7,6 +7,7 @@ from app.domain.interfaces.repositories.chunk import AbstractChunkRepository
 from app.domain.interfaces.repositories.client import AbstractClientRepository 
 from app.domain.interfaces.repositories.document import AbstractDocumentRepository
 from app.domain.interfaces.repositories.ingestion_job import AbstractIngestionJobRepository
+from app.domain.interfaces.repositories.message import AbstractMessageRepository
 from app.domain.interfaces.repositories.outbox import AbstractOutboxRepository
 from app.domain.interfaces.repositories.session import AbstractSessionRepository
 from app.domain.interfaces.repositories.session_document import AbstractSessionDocumentRepository
@@ -17,6 +18,7 @@ from app.infrastructure.repositories.chunk import ChunkRepository
 from app.infrastructure.repositories.client import ClientRepository 
 from app.infrastructure.repositories.document import DocumentRepository
 from app.infrastructure.repositories.ingestion_job import IngestionJobRepository
+from app.infrastructure.repositories.message import MessageRepository
 from app.infrastructure.repositories.outbox import OutboxRepository
 from app.infrastructure.repositories.session import SessionRepository
 from app.infrastructure.repositories.session_document import SessionDocumentRepository
@@ -34,6 +36,7 @@ class UnitOfWork:
     chunk_repo: AbstractChunkRepository
     ingestion_job_repo: AbstractIngestionJobRepository
     outbox_repo: AbstractOutboxRepository
+    message_repo: AbstractMessageRepository
     
     def __init__(self) -> None: 
         self.session: AsyncSession | None = None
@@ -49,6 +52,7 @@ class UnitOfWork:
         self.chunk_repo = ChunkRepository(self.session)
         self.ingestion_job_repo = IngestionJobRepository(self.session)
         self.outbox_repo = OutboxRepository(self.session)
+        self.message_repo = MessageRepository(self.session)
         return self
     
     async def __aexit__(

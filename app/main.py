@@ -10,7 +10,7 @@ from app.domain.core.logger import config_logger
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]: 
-    http_client = aiohttp.ClientSession()
+    http_client = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=180))
     app.state["http_client"] = http_client
     yield
     await http_client.close()

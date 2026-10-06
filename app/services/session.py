@@ -93,24 +93,27 @@ class SessionService:
             return messages, total
         
     async def token_event_stream(self, client_id: int, session_id: int, prompt: str) -> AsyncGenerator[bytes]: 
-        # Build chat history
-        history = await self._build_history(client_id, session_id, prompt)
+        # Generate embedding
+        embedding_prompt = await generate_embedding(self.http_client, prompt)
         
+        # Build chat history
+        history = await self._build_history(client_id, session_id, embedding_prompt, prompt)
+        
+        # Save user's prompt
+        await self.save_message(client_id, session_id, SenderType.Client, prompt)
+        
+        response = ""
         try:
-            response = ""
             async for token in stream_llm_response(history, self.http_client):
                 response += token
                 yield self._sse_format(data=token).encode("utf-8")
             yield self._sse_format(data="{}", event="done").encode("utf-8")
-            
-            # Save messages
-            await asyncio.gather(
-                self.save_message(client_id, session_id, SenderType.Client, prompt),
-                self.save_message(client_id, session_id, SenderType.LLM, response)
-            )
         except Exception as exc: 
             logging.error(f"Token Event Stream error = Client(Id={client_id}), Session(Id={session_id}). Error: {str(exc)}")
-            yield self._sse_format(data="{'error': 'stream_failed'}", event="error").encode("utf-8")
+            yield self._sse_format(data='{"error": "stream_failed"}', event="error").encode("utf-8")
+        finally: 
+            if len(response) > 0: 
+                await self.save_message(client_id, session_id, SenderType.LLM, response) 
     
     async def _validate_session_and_document(
         self, 
@@ -137,14 +140,11 @@ class SessionService:
     async def _find_similar_chunks(
         self,
         session_id: int, 
-        input_: str,
+        embedding_prompt: list[float],
         uow: UnitOfWork
     ) -> list[str]: 
-        # Generate embedding for input
-        embedding_input = await generate_embedding(self.http_client, input_)
-        
         # Retrieve similar 
-        chunks = await uow.chunk_repo.retrieve_similar(session_id, embedding_input)
+        chunks = await uow.chunk_repo.retrieve_similar(session_id, embedding_prompt)
         
         return [chunk.text for chunk in chunks]
 
@@ -161,10 +161,16 @@ class SessionService:
         messages = await uow.message_repo.get_messages(session_id, limit=20)
         return [{"role": message.sender.value, "content": message.text} for message in messages]
 
-    async def _build_history(self, client_id: int, session_id: int, prompt: str) -> list[dict[str, str]]:
+    async def _build_history(
+        self, 
+        client_id: int, 
+        session_id: int, 
+        embedding_prompt: list[float],
+        prompt: str
+    ) -> list[dict[str, str]]:
         async with UnitOfWork() as uow:
             await self._validate_session(client_id, session_id, uow)
-            chunks = await self._find_similar_chunks(session_id, prompt, uow)
+            chunks = await self._find_similar_chunks(session_id, embedding_prompt, uow)
             context = "\n\n".join(chunks)
             messages = await self._get_messages(session_id, uow)
             
